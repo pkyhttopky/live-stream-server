@@ -23,6 +23,11 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         console.log('User disconnected');
     });
+    // Add this inside io.on('connection', (socket) => { ... })
+socket.on('admin-request-stream', (adminPeerId) => {
+    // Relay the request to everyone (the User page will hear it)
+    io.emit('request-video', adminPeerId);
+});
 });
 
 // Viewer growth logic

@@ -4,9 +4,10 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http, { cors: { origin: "*" } });
 const { AccessToken } = require('livekit-server-sdk');
 
-const LIVEKIT_URL = 'wss://catn-73474x1n.livekit.cloud';
-const LIVEKIT_API_KEY = 'API6SF7tgwPa3dG';
-const LIVEKIT_API_SECRET = 'Ya668kfusl2LjsR06OYNd3O8WbZTtfDHMwJew3Kud6eD';
+// Caching credentials for speed
+const LK_URL = 'wss://catn-73474x1n.livekit.cloud';
+const LK_KEY = 'API6SF7tgwPa3dG';
+const LK_SECRET = 'Ya668kfusl2LjsR06OYNd3O8WbZTtfDHMwJew3Kud6eD';
 
 let userStatus = "Offline";
 
@@ -24,20 +25,30 @@ io.on('connection', (socket) => {
     });
 
     socket.on('admin-approve-live', async () => {
-        const streamerToken = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity: 'streamer_' + Date.now() });
-        streamerToken.addGrant({ roomJoin: true, room: 'main_room', canPublish: true, canSubscribe: false });
-        
-        const viewerToken = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity: 'admin_viewer' });
-        viewerToken.addGrant({ roomJoin: true, room: 'main_room', canPublish: false, canSubscribe: true });
+        try {
+            // Identity must be unique for each connection
+            const streamerId = `streamer_${Math.floor(Math.random() * 10000)}`;
+            const viewerId = `admin_${Math.floor(Math.random() * 10000)}`;
 
-        userStatus = "Broadcasting";
-        io.emit('status-update', userStatus);
-        
-        io.emit('live-approved', {
-            userToken: streamerToken.toJwt(),
-            adminToken: viewerToken.toJwt(),
-            url: LIVEKIT_URL
-        });
+            const streamerToken = new AccessToken(LK_KEY, LK_SECRET, { identity: streamerId });
+            streamerToken.addGrant({ roomJoin: true, room: 'main_room', canPublish: true, canSubscribe: false });
+            
+            const viewerToken = new AccessToken(LK_KEY, LK_SECRET, { identity: viewerId });
+            viewerToken.addGrant({ roomJoin: true, room: 'main_room', canPublish: false, canSubscribe: true });
+
+            userStatus = "Broadcasting";
+            io.emit('status-update', userStatus);
+            
+            // Send the URL and tokens
+            io.emit('live-approved', {
+                userToken: streamerToken.toJwt(),
+                adminToken: viewerToken.toJwt(),
+                url: LK_URL
+            });
+            console.log("Tokens generated and sent.");
+        } catch (err) {
+            console.error("Token Generation Error:", err);
+        }
     });
 
     socket.on('send-comment', (data) => io.emit('new-comment', data));

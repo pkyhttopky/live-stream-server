@@ -1,50 +1,57 @@
 const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
-const io = require('socket.io')(http, {
-    cors: {
-        origin: "*", // Allows any website to connect
-        methods: ["GET", "POST"]
-    }
-});
+const io = require('socket.io')(http, { cors: { origin: "*" } });
 
+let userStatus = "Offline"; // Offline, Online, Requesting, Broadcasting
 let viewerCount = 0;
-let targetReached = false;
 
 io.on('connection', (socket) => {
-    console.log('A user connected');
+    // 1. Initial Status Check
+    socket.emit('status-update', userStatus);
 
-    socket.on('send-comment', (data) => {
-        console.log('Comment received:', data);
-        // This sends the comment to EVERYONE connected (including the User/Streamer)
-        io.emit('new-comment', data);
+    // 2. User notifies they are online
+    socket.on('user-online', () => {
+        userStatus = "Online (Idle)";
+        io.emit('status-update', userStatus);
     });
+
+    // 3. User requests to go live
+    socket.on('user-request-live', () => {
+        userStatus = "Requesting Live...";
+        io.emit('status-update', userStatus);
+        io.emit('admin-notification', 'User wants to go live!');
+    });
+
+    // 4. Admin approves the request
+    socket.on('admin-approve-live', (adminPeerId) => {
+        userStatus = "Broadcasting";
+        io.emit('status-update', userStatus);
+        // Tell the user they are approved and give them the admin's Peer ID
+        io.emit('live-approved', adminPeerId);
+    });
+
+    // 5. Standard Comment/View Logic
+    socket.on('send-comment', (data) => io.emit('new-comment', data));
 
     socket.on('disconnect', () => {
-        console.log('User disconnected');
+        // Simple logic: if anyone disconnects, we reset for safety in this 1-on-1 setup
+        userStatus = "Offline";
+        io.emit('status-update', userStatus);
     });
-    // Add this inside io.on('connection', (socket) => { ... })
-socket.on('admin-request-stream', (adminPeerId) => {
-    // Relay the request to everyone (the User page will hear it)
-    io.emit('request-video', adminPeerId);
-});
 });
 
-// Viewer growth logic
+// View count logic (same as before)
 setInterval(() => {
-    if (!targetReached) {
-        if (viewerCount < 10) {
-            viewerCount += Math.floor(Math.random() * 2) + 1; 
-        } else if (viewerCount < 150) {
-            viewerCount += Math.floor(Math.random() * 8) + 2;
-        } else {
-            targetReached = true;
-        }
+    if (userStatus === "Broadcasting") {
+        if (viewerCount < 10) viewerCount += 1;
+        else if (viewerCount < 180) viewerCount += Math.floor(Math.random() * 5);
+        else viewerCount = Math.floor(Math.random() * (200 - 150 + 1)) + 150;
     } else {
-        viewerCount = Math.floor(Math.random() * (200 - 150 + 1)) + 150;
+        viewerCount = 0;
     }
     io.emit('update-views', viewerCount);
 }, 3000);
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+http.listen(PORT, () => console.log(`Server running on ${PORT}`));

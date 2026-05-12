@@ -18,19 +18,15 @@ io.on('connection', (socket) => {
         io.emit('status-update', userStatus);
     });
 
-    // When Admin clicks Approve
     socket.on('admin-approve-live', () => {
         io.emit('live-approved'); 
     });
 
-// ... inside io.on('connection') ...
-
-socket.on('user-camera-ready', (userPeerId) => {
-    userStatus = "Broadcasting";
-    io.emit('status-update', userStatus);
-    // PASS THE ID TO THE ADMIN
-    io.emit('user-ready-to-call', userPeerId); 
-});
+    socket.on('user-camera-ready', (userPeerId) => {
+        userStatus = "Broadcasting";
+        io.emit('status-update', userStatus);
+        io.emit('user-ready-to-call', userPeerId); 
+    });
 
     socket.on('send-comment', (data) => io.emit('new-comment', data));
 

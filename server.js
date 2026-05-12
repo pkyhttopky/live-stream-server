@@ -24,7 +24,6 @@ io.on('connection', (socket) => {
     });
 
     socket.on('admin-approve-live', async () => {
-        // Participant names must be unique
         const streamerToken = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity: 'streamer_' + Date.now() });
         streamerToken.addGrant({ roomJoin: true, room: 'main_room', canPublish: true, canSubscribe: false });
         

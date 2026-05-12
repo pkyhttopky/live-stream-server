@@ -23,12 +23,14 @@ io.on('connection', (socket) => {
         io.emit('live-approved'); 
     });
 
-    // When User's camera is actually flowing
-    socket.on('user-camera-ready', () => {
-        userStatus = "Broadcasting";
-        io.emit('status-update', userStatus);
-        io.emit('user-ready-to-call'); // This triggers the Admin to call
-    });
+// ... inside io.on('connection') ...
+
+socket.on('user-camera-ready', (userPeerId) => {
+    userStatus = "Broadcasting";
+    io.emit('status-update', userStatus);
+    // PASS THE ID TO THE ADMIN
+    io.emit('user-ready-to-call', userPeerId); 
+});
 
     socket.on('send-comment', (data) => io.emit('new-comment', data));
 
